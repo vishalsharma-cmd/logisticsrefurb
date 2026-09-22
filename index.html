@@ -15,12 +15,20 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
     font-family: -apple-system, Roboto, 'Segoe UI', sans-serif;
-    background: var(--bg); margin: 0; padding: 16px 16px 110px; color: #202124;
+    background: var(--bg); margin: 0; padding: 0 16px 110px; color: #202124;
   }
   h1 { font-size: 21px; margin: 0 0 2px; }
-  .subtitle { color: var(--gray); font-size: 13px; margin-bottom: 16px; display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .topbar { padding-top:16px; }
+  .subtitle { color: var(--gray); font-size: 13px; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center; gap:8px;}
   .subtitle span.who { font-weight:600; color:#202124; }
   .change-link { color: var(--primary); font-size: 12px; font-weight: 700; background:none; border:none; flex-shrink:0; }
+
+  /* Tabs */
+  .tabbar { display:flex; gap:8px; margin-bottom:16px; position:sticky; top:0; background:var(--bg); padding-top:4px; z-index:10; }
+  .tab-btn { flex:1; padding:12px 8px; border-radius:10px; border:2px solid #dadce0; background:#fff; font-weight:700; font-size:14px; color:var(--gray); }
+  .tab-btn.active { border-color:var(--primary); color:var(--primary); background:#e8f0fe; }
+  .tab-panel.hidden { display:none; }
+
   .card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
   label { display: block; font-weight: 600; font-size: 15px; margin-bottom: 6px; }
   label small { display:block; font-weight:400; color:var(--gray); font-size:12px; margin-top:1px;}
@@ -49,13 +57,30 @@
   #submitBar { position: fixed; bottom: 0; left: 0; right: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px)); background: #fff; box-shadow: 0 -2px 8px rgba(0,0,0,0.08); }
   #submitBtn { width: 100%; padding: 17px; font-size: 17px; font-weight: 700; background: var(--primary); color: #fff; border: none; border-radius: 10px; }
   #submitBtn:disabled { background: #c4c7cc; }
-  #offlineNote { font-size:12px; color:var(--red); text-align:center; margin-bottom:6px; display:none; font-weight:600; }
+  #offlineNote { font-size:12px; color:var(--red); text-align:center; margin-bottom:6px; font-weight:600; }
   .toast { position: fixed; top: 16px; left: 16px; right: 16px; padding: 14px; border-radius: 10px; font-weight: 600; text-align: center; display: none; z-index: 60; }
   .toast.ok { background: #e6f4ea; color: var(--green); display: block; }
   .toast.err { background: #fce8e6; color: var(--red); display: block; }
   .hidden { display: none !important; }
 
-  /* full-screen overlays: config error / login / camera */
+  /* Logs tab */
+  .log-search-row { display:flex; gap:8px; }
+  .log-search-row input { flex:1; }
+  .log-search-row button { flex-shrink:0; padding:0 18px; border-radius:8px; border:none; background:var(--primary); color:#fff; font-weight:700; }
+  .log-item { border:1px solid #e6e6e6; border-radius:10px; padding:12px 14px; margin-top:10px; }
+  .log-item-top { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .log-reg { font-weight:700; font-size:16px; }
+  .log-badge { font-size:11px; font-weight:700; padding:3px 8px; border-radius:20px; }
+  .log-badge.inward { background:#e6f4ea; color:var(--green); }
+  .log-badge.outward { background:#fce8e6; color:var(--red); }
+  .log-sub { font-size:13px; color:var(--gray); margin-top:4px; }
+  .log-route { font-size:13px; margin-top:2px; }
+  .log-expand { margin-top:10px; display:flex; gap:10px; }
+  .log-expand img { width:50%; border-radius:8px; background:#eee; min-height:80px; }
+  .log-empty { text-align:center; color:var(--gray); font-size:14px; padding:30px 0; }
+  .log-loading { text-align:center; color:var(--gray); font-size:13px; padding:10px 0; }
+
+  /* full-screen overlays */
   .overlay { position:fixed; inset:0; background:#fff; z-index:100; display:flex; flex-direction:column; }
   .overlay-pad { padding:24px 20px; max-width:480px; margin:0 auto; width:100%; }
   .overlay-center { display:flex; align-items:center; justify-content:center; min-height:100%; }
@@ -79,15 +104,14 @@
         <div class="big-emoji">⚠️</div>
         <h1 style="text-align:center;">App not set up yet</h1>
         <p style="color:var(--gray); text-align:center; font-size:15px;">
-          This app isn't connected to its data yet. Ask your admin to open
-          <b>Index.html</b> and set <code>API_URL</code> to the deployed
-          Apps Script link (ends in <code>/exec</code>).
+          Ask your admin to open <b>index.html</b> and set <code>API_URL</code>
+          to the deployed Apps Script link (ends in <code>/exec</code>).
         </p>
       </div>
     </div>
   </div>
 
-  <!-- ===== LOGIN OVERLAY (who is using this device right now) ===== -->
+  <!-- ===== LOGIN OVERLAY ===== -->
   <div class="overlay hidden" id="loginOverlay">
     <div class="overlay-pad overlay-center">
       <div style="width:100%;">
@@ -119,74 +143,98 @@
     <canvas id="camCanvas" class="hidden"></canvas>
   </div>
 
-  <h1>🏍️ Refurb Logistics</h1>
-  <div class="subtitle">
-    <span id="userLine">Loading…</span>
-    <button class="change-link hidden" id="changeUserBtn">change</button>
+  <div class="topbar">
+    <h1>🏍️ Refurb Logistics</h1>
+    <div class="subtitle">
+      <span id="userLine">Loading…</span>
+      <button class="change-link hidden" id="changeUserBtn">change</button>
+    </div>
   </div>
   <div class="toast" id="toast"></div>
-  <div id="offlineNote">⚠ No internet connection — can't save right now</div>
+  <div id="offlineNote" class="hidden">⚠ No internet connection</div>
 
-  <div class="card">
-    <label class="req">Vehicle Reg No. <small>गाड़ी नंबर</small></label>
-    <input type="text" id="regInput" placeholder="Type reg number…" autocomplete="off" autocapitalize="characters">
-    <div class="autolist hidden" id="regSuggestions"></div>
-    <div id="fetchedInfo" class="fetched hidden">
-      Proc ID <b id="fProcId"></b> · <b id="fMake"></b> <span id="fModel"></span> <span id="fVariant"></span>
-    </div>
-    <div id="notFoundMsg" class="fetched hidden">Reg not found. Add it as a new bike below ↓</div>
-    <button class="link-btn" id="addNewToggle">+ Add new bike / custom reg</button>
-    <div id="newBikeForm" class="hidden" style="margin-top:8px;">
-      <label>Make</label><input type="text" id="newMake">
-      <label>Model</label><input type="text" id="newModel">
-      <label>Variant</label><input type="text" id="newVariant">
-      <button class="btn-secondary" id="saveNewBike">Save new bike</button>
-    </div>
+  <div class="tabbar">
+    <button class="tab-btn active" id="tabNewBtn">📝 New Entry<br><small style="font-weight:400;">नई एंट्री</small></button>
+    <button class="tab-btn" id="tabLogsBtn">🔎 View Logs<br><small style="font-weight:400;">लॉग देखें</small></button>
   </div>
 
-  <div class="card">
-    <label class="req">Movement Type <small>अंदर या बाहर</small></label>
-    <div class="toggle-row">
-      <button class="toggle-btn inward" id="btnInward">📥 Inward<small>अंदर आना</small></button>
-      <button class="toggle-btn outward" id="btnOutward">📤 Outward<small>बाहर जाना</small></button>
+  <!-- ================= TAB 1: NEW ENTRY ================= -->
+  <div class="tab-panel" id="panelNew">
+
+    <div class="card">
+      <label class="req">Vehicle Reg No. <small>गाड़ी नंबर</small></label>
+      <input type="text" id="regInput" placeholder="Type reg number…" autocomplete="off" autocapitalize="characters">
+      <div class="autolist hidden" id="regSuggestions"></div>
+      <div id="fetchedInfo" class="fetched hidden">
+        Proc ID <b id="fProcId"></b> · <b id="fMake"></b> <span id="fModel"></span> <span id="fVariant"></span>
+      </div>
+      <div id="notFoundMsg" class="fetched hidden">Reg not found. Add it as a new bike below ↓</div>
+      <button class="link-btn" id="addNewToggle">+ Add new bike / custom reg</button>
+      <div id="newBikeForm" class="hidden" style="margin-top:8px;">
+        <label>Make</label><input type="text" id="newMake">
+        <label>Model</label><input type="text" id="newModel">
+        <label>Variant</label><input type="text" id="newVariant">
+        <button class="btn-secondary" id="saveNewBike">Save new bike</button>
+      </div>
     </div>
-    <div id="fromRow" class="hidden" style="margin-top:10px;">
-      <label class="req" id="fromLabel">From <small>कहाँ से आई</small></label>
-      <div class="field-row"><input type="text" id="fromInput"><button class="mic-btn" id="fromMic" title="Speak">🎤</button></div>
+
+    <div class="card">
+      <label class="req">Movement Type <small>अंदर या बाहर</small></label>
+      <div class="toggle-row">
+        <button class="toggle-btn inward" id="btnInward">📥 Inward<small>अंदर आना</small></button>
+        <button class="toggle-btn outward" id="btnOutward">📤 Outward<small>बाहर जाना</small></button>
+      </div>
+      <div id="fromRow" class="hidden" style="margin-top:10px;">
+        <label class="req" id="fromLabel">From <small>कहाँ से आई</small></label>
+        <div class="field-row"><input type="text" id="fromInput"><button class="mic-btn" id="fromMic" title="Speak">🎤</button></div>
+      </div>
+      <div id="toRow" class="hidden" style="margin-top:10px;">
+        <label class="req" id="toLabel">To <small>कहाँ जा रही है</small></label>
+        <div class="field-row"><input type="text" id="toInput"><button class="mic-btn" id="toMic" title="Speak">🎤</button></div>
+      </div>
     </div>
-    <div id="toRow" class="hidden" style="margin-top:10px;">
-      <label class="req" id="toLabel">To <small>कहाँ जा रही है</small></label>
-      <div class="field-row"><input type="text" id="toInput"><button class="mic-btn" id="toMic" title="Speak">🎤</button></div>
+
+    <div class="card">
+      <label class="req">Bike Side Photo <small>गाड़ी की साइड फोटो</small></label>
+      <div class="photo-box" id="sideBox">
+        <input type="file" accept="image/*" capture="environment" id="sidePhotoInput" class="hidden">
+        <button class="btn-secondary" id="sidePhotoBtn">📷 Take side photo</button>
+        <img id="sidePreview" class="hidden">
+      </div>
     </div>
+
+    <div class="card">
+      <label class="req">Meter (Odometer) Photo <small>मीटर फोटो</small></label>
+      <div class="guide-hint">Photo is compressed to a small thumbnail so it can be saved directly in the Sheet.</div>
+      <div class="photo-box" id="meterBox">
+        <input type="file" accept="image/*" capture="environment" id="meterPhotoInput" class="hidden">
+        <button class="btn-secondary" id="meterPhotoBtn">📷 Take meter photo</button>
+        <img id="meterPreview" class="hidden">
+      </div>
+    </div>
+
   </div>
 
-  <div class="card">
-    <label class="req">Bike Side Photo <small>गाड़ी की साइड फोटो</small></label>
-    <div class="photo-box" id="sideBox">
-      <input type="file" accept="image/*" capture="environment" id="sidePhotoInput" class="hidden">
-      <button class="btn-secondary" id="sidePhotoBtn">📷 Take side photo</button>
-      <img id="sidePreview" class="hidden">
+  <!-- ================= TAB 2: LOGS ================= -->
+  <div class="tab-panel hidden" id="panelLogs">
+    <div class="card">
+      <label>Search by Reg No. <small>गाड़ी नंबर से खोजें</small></label>
+      <div class="log-search-row">
+        <input type="text" id="logSearchInput" placeholder="e.g. DL2X" autocapitalize="characters">
+        <button id="logSearchBtn">Search</button>
+      </div>
+      <div class="guide-hint">Shows the most recent <span id="maxResultsNote">25</span> matches. Leave blank + search to see the latest entries overall.</div>
     </div>
-  </div>
-
-  <div class="card">
-    <label class="req">Meter (Odometer) Photo <small>मीटर फोटो</small></label>
-    <div class="guide-hint">Guided camera keeps the meter centred and readable.</div>
-    <div class="photo-box" id="meterBox">
-      <input type="file" accept="image/*" capture="environment" id="meterPhotoInput" class="hidden">
-      <button class="btn-secondary" id="meterPhotoBtn">📷 Take meter photo</button>
-      <img id="meterPreview" class="hidden">
-    </div>
+    <div id="logResults"></div>
   </div>
 
   <div id="submitBar"><button id="submitBtn" disabled>Submit Entry / जमा करें</button></div>
 
 <script>
   // ====== CONFIG — paste your Apps Script Web App /exec URL here ======
-  const API_URL = 'https://script.google.com/macros/s/AKfycby0pOCjztm8S22PKI5Kn54FJNozOtiGpi9bgVcLqHSPMTpc-47YdEa3OuKaUoIV0GQo/exec';
+  const API_URL = 'PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE';
   const REQUEST_TIMEOUT_MS = 15000;
 
-  // ---- Config guard: fail friendly instead of a raw HTML dump ----
   if (!API_URL || API_URL.indexOf('PASTE_') === 0) {
     document.getElementById('configOverlay').classList.remove('hidden');
     throw new Error('API_URL not configured');
@@ -202,16 +250,14 @@
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     return fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action, payload }),
       signal: controller.signal
     }).then(r => r.text()).then(text => {
       clearTimeout(timer);
       let res;
       try { res = JSON.parse(text); }
-      catch (e) {
-        throw new Error('Server did not return JSON. First 150 chars: ' + text.slice(0, 150));
-      }
+      catch (e) { throw new Error('Server did not return JSON. First 150 chars: ' + text.slice(0, 150)); }
       if (res && res.error) throw new Error(res.error);
       return res;
     }).catch(err => {
@@ -228,23 +274,40 @@
     setTimeout(() => { t.className = 'toast'; }, 3500);
   }
 
-  // Offline banner
   function refreshOnlineState() {
-    document.getElementById('offlineNote').style.display = navigator.onLine ? 'none' : 'block';
+    document.getElementById('offlineNote').classList.toggle('hidden', navigator.onLine);
     validate();
   }
   window.addEventListener('online', refreshOnlineState);
   window.addEventListener('offline', refreshOnlineState);
 
+  // ---------------- Tabs ----------------
+  const tabNewBtn = document.getElementById('tabNewBtn');
+  const tabLogsBtn = document.getElementById('tabLogsBtn');
+  const panelNew = document.getElementById('panelNew');
+  const panelLogs = document.getElementById('panelLogs');
+  const submitBar = document.getElementById('submitBar');
+
+  tabNewBtn.addEventListener('click', () => {
+    tabNewBtn.classList.add('active'); tabLogsBtn.classList.remove('active');
+    panelNew.classList.remove('hidden'); panelLogs.classList.add('hidden');
+    submitBar.classList.remove('hidden');
+  });
+  tabLogsBtn.addEventListener('click', () => {
+    tabLogsBtn.classList.add('active'); tabNewBtn.classList.remove('active');
+    panelLogs.classList.remove('hidden'); panelNew.classList.add('hidden');
+    submitBar.classList.add('hidden');
+  });
+
   const state = {
     reg: '', procId: '', make: '', model: '', variant: '',
     movementType: '', from: '', to: '',
-    sideImage: null, sideMime: '', meterImage: null, meterMime: '',
+    sideImage: null, meterImage: null,
     defaultLocation: 'Refurb GGN-1',
     createdBy: ''
   };
 
-  // ---------------- Login (per-device, remembered) ----------------
+  // ---------------- Login ----------------
   const LOGIN_KEY = 'refurb_username';
 
   function showLogin(users) {
@@ -439,37 +502,52 @@
   attachMic('fromMic', fromInput);
   attachMic('toMic', toInput);
 
-  // ---------------- Photos ----------------
-  // Compress + resize before converting to base64 — keeps uploads fast on field networks.
-  function resizeCanvasToDataUrl(canvas, maxDim, quality) {
-    let { width, height } = canvas;
-    if (width <= maxDim && height <= maxDim) return canvas.toDataURL('image/jpeg', quality);
-    const scale = maxDim / Math.max(width, height);
-    const out = document.createElement('canvas');
-    out.width = Math.round(width * scale); out.height = Math.round(height * scale);
-    out.getContext('2d').drawImage(canvas, 0, 0, out.width, out.height);
-    return out.toDataURL('image/jpeg', quality);
+  // ---------------- Photos: iterative compression to fit a Sheets cell ----------------
+  // Sheets caps a cell at 50,000 chars. We keep shrinking quality/size until
+  // the base64 data URI is comfortably under that, so it never gets rejected
+  // server-side. This trades resolution for "fits in a spreadsheet cell".
+  const TARGET_MAX_CHARS = 40000;
+
+  function canvasToDataUrl(canvas, quality) { return canvas.toDataURL('image/jpeg', quality); }
+
+  function drawScaled(img, maxDim) {
+    let { width, height } = img;
+    if (width > maxDim || height > maxDim) {
+      const scale = maxDim / Math.max(width, height);
+      width = Math.round(width * scale); height = Math.round(height * scale);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+    return canvas;
   }
 
-  function fileToCompressedBase64(file, maxDim, quality) {
+  function compressImageSource(img) {
+    let maxDim = 900, quality = 0.6;
+    let dataUrl = canvasToDataUrl(drawScaled(img, maxDim), quality);
+    let attempts = 0;
+    while (dataUrl.length > TARGET_MAX_CHARS && attempts < 8) {
+      if (quality > 0.3) quality -= 0.1; else maxDim = Math.max(300, maxDim - 100);
+      dataUrl = canvasToDataUrl(drawScaled(img, maxDim), quality);
+      attempts++;
+    }
+    return dataUrl; // best effort; server does a final size check too
+  }
+
+  function fileToCompressedDataUrl(file) {
     return new Promise((resolve, reject) => {
       const img = new Image();
       const reader = new FileReader();
       reader.onload = ev => { img.src = ev.target.result; };
       reader.onerror = reject;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width; canvas.height = img.height;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        resolve(resizeCanvasToDataUrl(canvas, maxDim, quality));
-      };
+      img.onload = () => resolve(compressImageSource(img));
       img.onerror = reject;
       reader.readAsDataURL(file);
     });
   }
 
   function setPhoto(key, dataUrl, boxId, previewId, btnId, retakeLabel) {
-    state[key] = dataUrl; state[key + 'Mime'] = 'image/jpeg';
+    state[key] = dataUrl;
     const preview = document.getElementById(previewId);
     preview.src = dataUrl; preview.classList.remove('hidden');
     document.getElementById(boxId).classList.add('filled');
@@ -477,18 +555,17 @@
     validate();
   }
 
-  // Bike side photo — plain native camera capture (fast, no guide needed)
+  // Bike side photo — plain native camera capture
   document.getElementById('sidePhotoBtn').addEventListener('click', () => document.getElementById('sidePhotoInput').click());
   document.getElementById('sidePhotoInput').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
-    fileToCompressedBase64(file, 1280, 0.72)
+    fileToCompressedDataUrl(file)
       .then(url => setPhoto('sideImage', url, 'sideBox', 'sidePreview', 'sidePhotoBtn', '📷 Retake side photo'))
       .catch(() => showToast('Could not read photo, try again', false));
   });
 
-  // Meter photo — guided in-app camera with a centring circle, falls back
-  // to the plain native camera if getUserMedia isn't available.
+  // Meter photo — guided in-app camera with a centring circle
   let camStream = null;
   const camOverlay = document.getElementById('camOverlay');
   const camVideo = document.getElementById('camVideo');
@@ -508,7 +585,7 @@
         camOverlay.classList.remove('hidden');
         sizeGuide();
       })
-      .catch(() => document.getElementById('meterPhotoInput').click()); // permission denied etc → fallback
+      .catch(() => document.getElementById('meterPhotoInput').click());
   }
 
   function sizeGuide() {
@@ -532,16 +609,19 @@
     camCanvas.width = camVideo.videoWidth;
     camCanvas.height = camVideo.videoHeight;
     camCanvas.getContext('2d').drawImage(camVideo, 0, 0);
-    const dataUrl = resizeCanvasToDataUrl(camCanvas, 1280, 0.72);
-    setPhoto('meterImage', dataUrl, 'meterBox', 'meterPreview', 'meterPhotoBtn', '📷 Retake meter photo');
+    const img = new Image();
+    img.onload = () => {
+      const dataUrl = compressImageSource(img);
+      setPhoto('meterImage', dataUrl, 'meterBox', 'meterPreview', 'meterPhotoBtn', '📷 Retake meter photo');
+    };
+    img.src = camCanvas.toDataURL('image/jpeg', 0.9);
     closeCam();
   });
 
-  // Fallback path (no camera API / permission denied)
   document.getElementById('meterPhotoInput').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
-    fileToCompressedBase64(file, 1280, 0.72)
+    fileToCompressedDataUrl(file)
       .then(url => setPhoto('meterImage', url, 'meterBox', 'meterPreview', 'meterPhotoBtn', '📷 Retake meter photo'))
       .catch(() => showToast('Could not read photo, try again', false));
   });
@@ -561,8 +641,8 @@
       procId: state.procId, reg: state.reg, make: state.make,
       model: state.model, variant: state.variant,
       movementType: state.movementType, from: state.from, to: state.to,
-      sideImageBase64: state.sideImage, sideImageMime: state.sideMime,
-      meterImageBase64: state.meterImage, meterImageMime: state.meterMime,
+      sideImageBase64: state.sideImage,
+      meterImageBase64: state.meterImage,
       createdBy: state.createdBy
     }).then(() => {
       showToast(`Saved ✔ ${state.reg} — ${state.movementType}`, true);
@@ -588,6 +668,63 @@
     document.getElementById('meterPhotoBtn').textContent = '📷 Take meter photo';
     const btn = document.getElementById('submitBtn');
     btn.textContent = 'Submit Entry / जमा करें'; btn.disabled = true;
+  }
+
+  // ---------------- Logs tab: search + lazy photo load ----------------
+  const logSearchInput = document.getElementById('logSearchInput');
+  const logResults = document.getElementById('logResults');
+  let logDebounce;
+
+  logSearchInput.addEventListener('input', () => {
+    logSearchInput.value = logSearchInput.value.toUpperCase();
+    clearTimeout(logDebounce);
+    if (logSearchInput.value.trim().length >= 2) {
+      logDebounce = setTimeout(runLogSearch, 400);
+    }
+  });
+  document.getElementById('logSearchBtn').addEventListener('click', runLogSearch);
+
+  function runLogSearch() {
+    logResults.innerHTML = '<div class="log-loading">Searching…</div>';
+    callApi('getLogs', { query: logSearchInput.value.trim() }).then(rows => {
+      renderLogResults(rows);
+    }).catch(err => {
+      logResults.innerHTML = '';
+      showToast(err.message, false);
+    });
+  }
+
+  function renderLogResults(rows) {
+    if (!rows.length) { logResults.innerHTML = '<div class="log-empty">No entries found.</div>'; return; }
+    logResults.innerHTML = '';
+    rows.forEach(row => {
+      const item = document.createElement('div');
+      item.className = 'log-item';
+      const when = row.timestamp ? new Date(row.timestamp).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+      item.innerHTML = `
+        <div class="log-item-top">
+          <span class="log-reg">${row.reg}</span>
+          <span class="log-badge ${row.movementType}">${row.movementType === 'inward' ? '📥 Inward' : '📤 Outward'}</span>
+        </div>
+        <div class="log-sub">${row.make || ''} ${row.model || ''} ${row.variant || ''} · Proc ${row.procId}</div>
+        <div class="log-route">${row.from || '—'} → ${row.to || '—'}</div>
+        <div class="log-sub">${row.createdBy || ''} · ${when}</div>
+        <button class="link-btn" data-row="${row.rowIndex}">View photos ▾</button>
+        <div class="log-expand hidden"></div>
+      `;
+      const expandBtn = item.querySelector('button[data-row]');
+      const expandBox = item.querySelector('.log-expand');
+      expandBtn.addEventListener('click', () => {
+        if (!expandBox.classList.contains('hidden')) { expandBox.classList.add('hidden'); expandBtn.textContent = 'View photos ▾'; return; }
+        expandBtn.textContent = 'Loading…';
+        callApi('getLogPhotos', { rowIndex: row.rowIndex }).then(photos => {
+          expandBox.innerHTML = `<img src="${photos.sideImageBase64}"><img src="${photos.meterImageBase64}">`;
+          expandBox.classList.remove('hidden');
+          expandBtn.textContent = 'Hide photos ▴';
+        }).catch(err => { showToast(err.message, false); expandBtn.textContent = 'View photos ▾'; });
+      });
+      logResults.appendChild(item);
+    });
   }
 
   refreshOnlineState();
